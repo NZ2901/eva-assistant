@@ -1,48 +1,73 @@
 import { Injectable } from '@nestjs/common';
+
 import { MemoryService } from '../memory/memory.service';
+import { PermanentMemoryService } from '../permanent-memory/permanent-memory.service';
+import { ConversationService } from '../conversation/conversation.service';
+
+import { CountMessagesCommand } from './commands/count-messages.command';
+import { FirstMessageCommand } from './commands/first-message.command';
+import { LastMessageCommand } from './commands/last-message.command';
 
 @Injectable()
 export class BrainService {
   constructor(
     private readonly memoryService: MemoryService,
+    private readonly permanentMemoryService: PermanentMemoryService,
+    private readonly conversationService: ConversationService,
+
+    private readonly countMessagesCommand: CountMessagesCommand,
+    private readonly firstMessageCommand: FirstMessageCommand,
+    private readonly lastMessageCommand: LastMessageCommand,
   ) {}
 
-  chat(message: string) {
-    // Salva a mensagem na memória
-    this.memoryService.saveMessage(message);
+  async chat(message: string) {
+    // Salva a mensagem do usuário
+    await this.memoryService.saveMessage('user', message);
 
-    // Consulta a memória
-    const totalMessages = this.memoryService.getTotalMessages();
-    const messages = this.memoryService.getMessages();
+    // Salva informações importantes na memória permanente
+    const lowerMessage = message.toLowerCase();
 
-    // Quantas mensagens
-    if (message.toLowerCase().includes('quantas mensagens')) {
-      return {
-        response: `Você enviou ${totalMessages} mensagens até agora.`,
-      };
+    if (lowerMessage.startsWith('meu nome é ')) {
+      const name = message.substring(11).trim();
+
+      await this.permanentMemoryService.saveMemory(
+        'name',
+        name,
+      );
     }
 
-    // Primeira mensagem
-    if (message.toLowerCase().includes('primeira mensagem')) {
-      return {
-        response: `Sua primeira mensagem foi: "${messages[0]}"`,
-      };
+    // Lista de comandos
+    const commands = [
+      this.countMessagesCommand,
+      this.firstMessageCommand,
+      this.lastMessageCommand,
+    ];
+
+    // Procura um comando que consiga responder
+    for (const command of commands) {
+      if (command.matches(message)) {
+        const result = await command.execute();
+
+        await this.memoryService.saveMessage(
+          'assistant',
+          result.response,
+        );
+
+        return result;
+      }
     }
 
-    // Última mensagem (ignora a própria pergunta)
-    if (message.toLowerCase().includes('última mensagem')) {
-      const lastMessage = messages.at(-2);
+    // Conversation Engine
+    const response = await this.conversationService.chat(message);
 
-      return {
-        response: lastMessage
-          ? `Sua última mensagem foi: "${lastMessage}"`
-          : 'Você ainda não possui mensagens anteriores.',
-      };
-    }
+    // Salva a resposta da IA
+    await this.memoryService.saveMessage(
+      'assistant',
+      response,
+    );
 
-    // Resposta padrão
     return {
-      response: `Olá, João. Você disse: "${message}". Até agora nossa conversa possui ${totalMessages} mensagens.`,
+      response,
     };
   }
 }
