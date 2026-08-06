@@ -3,7 +3,8 @@ import { OrbGlow } from './OrbGlow';
 import { OrbOrbit } from './OrbOrbit';
 import { OrbPulse } from './OrbPulse';
 import { OrbRing } from './OrbRing';
-import { ORB_CONFIG, OrbState } from './OrbState';
+import { ORB_CONFIG } from './OrbState';
+import type { OrbState } from './OrbState';
 
 interface OrbProps {
   state?: OrbState;

@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface InfoPanelProps {
   title: string;
@@ -28,7 +28,6 @@ export function InfoPanel({
         p-7
         transition-all
         duration-300
-
         hover:-translate-y-1
         hover:border-blue-400/30
         hover:shadow-[0_0_40px_rgba(59,130,246,.15)]
