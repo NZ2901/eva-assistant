@@ -27,12 +27,14 @@ export class ChatService {
   async streamMessage(
     { message }: SendMessageRequest,
     onChunk: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
     await streamMessage(
       {
         message,
       },
       onChunk,
+      signal,
     );
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import type { MessageModel } from '../components/chat/types';
 import type { OrbState } from '../components/orb/OrbState';
@@ -13,6 +13,9 @@ export function useChat() {
 
   const [streamingMessageId, setStreamingMessageId] =
     useState<string | null>(null);
+
+  const abortControllerRef =
+    useRef<AbortController | null>(null);
 
   async function sendMessage(content: string) {
     const value = content.trim();
@@ -47,6 +50,10 @@ export function useChat() {
     try {
       let assistantContent = '';
 
+      const controller = new AbortController();
+
+      abortControllerRef.current = controller;
+
       await chatService.streamMessage(
         {
           message: value,
@@ -65,6 +72,7 @@ export function useChat() {
             ),
           );
         },
+        controller.signal,
       );
 
       setOrbState('speaking');
@@ -72,7 +80,11 @@ export function useChat() {
       await new Promise(resolve =>
         setTimeout(resolve, 500),
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
       setMessages(previous =>
         previous.map(message =>
           message.id === assistantId
@@ -85,10 +97,15 @@ export function useChat() {
         ),
       );
     } finally {
+      abortControllerRef.current = null;
       setStreamingMessageId(null);
       setIsTyping(false);
       setOrbState('idle');
     }
+  }
+
+  function stopGeneration() {
+    abortControllerRef.current?.abort();
   }
 
   return {
@@ -97,5 +114,6 @@ export function useChat() {
     isTyping,
     streamingMessageId,
     sendMessage,
+    stopGeneration,
   };
 }

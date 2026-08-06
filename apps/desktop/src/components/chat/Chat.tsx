@@ -17,6 +17,7 @@ export function Chat() {
     isTyping,
     streamingMessageId,
     sendMessage,
+    stopGeneration,
   } = useChat();
 
   const hasMessages = messages.length > 0;
@@ -137,6 +138,7 @@ export function Chat() {
       <footer className="py-6">
         <ChatInput
           onSend={sendMessage}
+          onStop={stopGeneration}
           disabled={isTyping}
         />
       </footer>

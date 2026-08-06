@@ -6,17 +6,19 @@ import {
 } from 'react';
 
 import {
-  LoaderCircle,
   SendHorizontal,
+  Square,
 } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop: () => void;
   disabled?: boolean;
 }
 
 export function ChatInput({
   onSend,
+  onStop,
   disabled = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
@@ -103,36 +105,51 @@ export function ChatInput({
         "
       />
 
-      <button
-        onClick={send}
-        disabled={disabled || !message.trim()}
-        className="
-          flex
-          h-11
-          w-11
-          items-center
-          justify-center
-          rounded-xl
-          bg-blue-600
-          text-white
-          transition-all
+      {disabled ? (
+        <button
+          onClick={onStop}
+          className="
+            flex
+            h-11
+            w-11
+            items-center
+            justify-center
+            rounded-xl
+            bg-red-600
+            text-white
+            transition-all
 
-          disabled:cursor-not-allowed
-          disabled:opacity-50
+            hover:scale-105
+            hover:bg-red-500
+          "
+        >
+          <Square size={18} />
+        </button>
+      ) : (
+        <button
+          onClick={send}
+          disabled={!message.trim()}
+          className="
+            flex
+            h-11
+            w-11
+            items-center
+            justify-center
+            rounded-xl
+            bg-blue-600
+            text-white
+            transition-all
 
-          hover:scale-105
-          hover:bg-blue-500
-        "
-      >
-        {disabled ? (
-          <LoaderCircle
-            size={18}
-            className="animate-spin"
-          />
-        ) : (
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+
+            hover:scale-105
+            hover:bg-blue-500
+          "
+        >
           <SendHorizontal size={18} />
-        )}
-      </button>
+        </button>
+      )}
     </div>
   );
 }

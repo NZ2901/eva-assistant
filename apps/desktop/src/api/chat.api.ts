@@ -23,6 +23,7 @@ export async function sendMessage(
 export async function streamMessage(
   body: ChatRequest,
   onChunk: (chunk: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(
     `${API_URL}/conversation/stream`,
@@ -32,6 +33,7 @@ export async function streamMessage(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal,
     },
   );
 
