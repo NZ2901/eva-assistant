@@ -1,7 +1,7 @@
+import { useChat } from '../../hooks/useChat';
 import { Orb } from '../orb';
 import { ChatInput } from './ChatInput';
 import { ChatMessages } from './ChatMessages';
-import { useChat } from '../../hooks/useChat';
 
 const suggestions = [
   'Criar API NestJS',
@@ -15,6 +15,7 @@ export function Chat() {
     messages,
     orbState,
     isTyping,
+    streamingMessageId,
     sendMessage,
   } = useChat();
 
@@ -97,6 +98,7 @@ export function Chat() {
                 <button
                   key={suggestion}
                   onClick={() => sendMessage(suggestion)}
+                  disabled={isTyping}
                   className="
                     rounded-2xl
                     border
@@ -107,6 +109,9 @@ export function Chat() {
                     text-white/80
                     transition-all
                     duration-300
+
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
 
                     hover:-translate-y-1
                     hover:border-blue-400/40
@@ -123,6 +128,7 @@ export function Chat() {
           <ChatMessages
             messages={messages}
             isTyping={isTyping}
+            streamingMessageId={streamingMessageId}
           />
         )}
       </main>
@@ -131,6 +137,7 @@ export function Chat() {
       <footer className="py-6">
         <ChatInput
           onSend={sendMessage}
+          disabled={isTyping}
         />
       </footer>
     </section>

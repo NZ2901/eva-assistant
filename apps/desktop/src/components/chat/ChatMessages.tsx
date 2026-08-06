@@ -1,16 +1,28 @@
+import { useEffect, useRef } from 'react';
+
 import { Message } from './Message';
-import { TypingIndicator } from './TypingIndicator';
-import { MessageModel } from './types';
+import type { MessageModel } from './types';
 
 interface ChatMessagesProps {
   messages: MessageModel[];
   isTyping: boolean;
+  streamingMessageId: string | null;
 }
 
 export function ChatMessages({
   messages,
   isTyping,
+  streamingMessageId,
 }: ChatMessagesProps) {
+  const bottomRef =
+    useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    });
+  }, [messages, isTyping]);
+
   return (
     <div
       className="
@@ -21,16 +33,20 @@ export function ChatMessages({
         overflow-y-auto
         px-4
         py-8
+        scroll-smooth
       "
     >
       {messages.map((message) => (
         <Message
           key={message.id}
           message={message}
+          isStreaming={
+            streamingMessageId === message.id
+          }
         />
       ))}
 
-      {isTyping && <TypingIndicator />}
+      <div ref={bottomRef} />
     </div>
   );
 }

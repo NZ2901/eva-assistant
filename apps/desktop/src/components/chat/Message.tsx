@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
 
-import { MessageModel } from './types';
+import { MarkdownMessage } from './MarkdownMessage';
+import type { MessageModel } from './types';
 
 interface MessageProps {
   message: MessageModel;
+  isStreaming: boolean;
 }
 
 export function Message({
   message,
+  isStreaming,
 }: MessageProps) {
   const isUser = message.role === 'user';
 
@@ -22,9 +25,11 @@ export function Message({
         y: 0,
       }}
       transition={{
-        duration: .25,
+        duration: 0.25,
       }}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex ${
+        isUser ? 'justify-end' : 'justify-start'
+      }`}
     >
       <div
         className={`
@@ -33,6 +38,7 @@ export function Message({
           px-6
           py-4
           leading-7
+          whitespace-pre-wrap
 
           ${
             isUser
@@ -41,7 +47,14 @@ export function Message({
           }
         `}
       >
-        {message.content}
+        {isUser ? (
+          message.content
+        ) : (
+          <MarkdownMessage
+            content={message.content}
+            isStreaming={isStreaming}
+          />
+        )}
       </div>
     </motion.div>
   );

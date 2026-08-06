@@ -1,5 +1,5 @@
 import { AppLayout } from '../components/layout/AppLayout';
-import { Dashboard } from '../components/home';
+import { Dashboard } from '../components/dashboard';
 
 export function HomePage() {
   return (

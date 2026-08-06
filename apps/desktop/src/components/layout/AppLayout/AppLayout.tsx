@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-import { Header } from '../../header';
+import { Header } from '../Header';
 import { Main } from '../Main';
 import { Sidebar } from '../Sidebar';
 
@@ -18,7 +18,9 @@ export function AppLayout({
       <div className="flex flex-1 flex-col">
         <Header />
 
-        <Main>{children}</Main>
+        <Main>
+          {children}
+        </Main>
       </div>
     </div>
   );

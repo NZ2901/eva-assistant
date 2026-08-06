@@ -1,29 +1,62 @@
-import { KeyboardEvent, useState } from 'react';
-import { SendHorizontal } from 'lucide-react';
+import {
+  KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
+import {
+  LoaderCircle,
+  SendHorizontal,
+} from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  disabled?: boolean;
 }
 
 export function ChatInput({
   onSend,
+  disabled = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
+
+  const textareaRef =
+    useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!textareaRef.current) return;
+
+    textareaRef.current.style.height = '0px';
+    textareaRef.current.style.height =
+      `${textareaRef.current.scrollHeight}px`;
+  }, [message]);
 
   function send() {
     const value = message.trim();
 
-    if (!value) return;
+    if (!value || disabled) return;
 
     onSend(value);
 
     setMessage('');
+
+    textareaRef.current?.focus();
   }
 
   function handleKeyDown(
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLTextAreaElement>,
   ) {
-    if (event.key === 'Enter') {
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+
       send();
     }
   }
@@ -35,7 +68,7 @@ export function ChatInput({
         flex
         w-full
         max-w-3xl
-        items-center
+        items-end
         gap-3
         rounded-2xl
         border
@@ -48,14 +81,21 @@ export function ChatInput({
         focus-within:shadow-[0_0_25px_rgba(59,130,246,.15)]
       "
     >
-      <input
+      <textarea
+        ref={textareaRef}
+        rows={1}
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        disabled={disabled}
+        onChange={(e) =>
+          setMessage(e.target.value)
+        }
         onKeyDown={handleKeyDown}
-        type="text"
         placeholder="Pergunte qualquer coisa..."
         className="
+          max-h-40
           flex-1
+          resize-none
+          overflow-y-auto
           bg-transparent
           text-white
           outline-none
@@ -65,6 +105,7 @@ export function ChatInput({
 
       <button
         onClick={send}
+        disabled={disabled || !message.trim()}
         className="
           flex
           h-11
@@ -76,11 +117,21 @@ export function ChatInput({
           text-white
           transition-all
 
+          disabled:cursor-not-allowed
+          disabled:opacity-50
+
           hover:scale-105
           hover:bg-blue-500
         "
       >
-        <SendHorizontal size={18} />
+        {disabled ? (
+          <LoaderCircle
+            size={18}
+            className="animate-spin"
+          />
+        ) : (
+          <SendHorizontal size={18} />
+        )}
       </button>
     </div>
   );
