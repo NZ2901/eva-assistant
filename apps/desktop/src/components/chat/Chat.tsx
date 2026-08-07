@@ -126,11 +126,35 @@ export function Chat() {
             </div>
           </div>
         ) : (
-          <ChatMessages
-            messages={messages}
-            isTyping={isTyping}
-            streamingMessageId={streamingMessageId}
-          />
+          <>
+            {isTyping && (
+              <div className="flex justify-center py-4">
+                <button
+                  onClick={stopGeneration}
+                  className="
+                    rounded-xl
+                    bg-red-600
+                    px-5
+                    py-2
+                    text-sm
+                    font-medium
+                    text-white
+                    transition-all
+
+                    hover:bg-red-500
+                  "
+                >
+                  ■ Parar geração
+                </button>
+              </div>
+            )}
+
+            <ChatMessages
+              messages={messages}
+              isTyping={isTyping}
+              streamingMessageId={streamingMessageId}
+            />
+          </>
         )}
       </main>
 
@@ -138,7 +162,6 @@ export function Chat() {
       <footer className="py-6">
         <ChatInput
           onSend={sendMessage}
-          onStop={stopGeneration}
           disabled={isTyping}
         />
       </footer>

@@ -1,4 +1,8 @@
-import { useEffect, useRef } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { Message } from './Message';
 import type { MessageModel } from './types';
@@ -14,17 +18,42 @@ export function ChatMessages({
   isTyping,
   streamingMessageId,
 }: ChatMessagesProps) {
-  const bottomRef =
+  const containerRef =
     useRef<HTMLDivElement>(null);
 
+  const [autoScroll, setAutoScroll] =
+    useState(true);
+
+  function handleScroll() {
+    const container =
+      containerRef.current;
+
+    if (!container) return;
+
+    const distanceFromBottom =
+      container.scrollHeight -
+      container.scrollTop -
+      container.clientHeight;
+
+    setAutoScroll(distanceFromBottom < 120);
+  }
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: 'smooth',
-    });
-  }, [messages, isTyping]);
+    if (!autoScroll) return;
+
+    const container =
+      containerRef.current;
+
+    if (!container) return;
+
+    container.scrollTop =
+      container.scrollHeight;
+  }, [messages, autoScroll]);
 
   return (
     <div
+      ref={containerRef}
+      onScroll={handleScroll}
       className="
         flex
         flex-1
@@ -36,7 +65,7 @@ export function ChatMessages({
         scroll-smooth
       "
     >
-      {messages.map((message) => (
+      {messages.map(message => (
         <Message
           key={message.id}
           message={message}
@@ -45,8 +74,6 @@ export function ChatMessages({
           }
         />
       ))}
-
-      <div ref={bottomRef} />
     </div>
   );
 }

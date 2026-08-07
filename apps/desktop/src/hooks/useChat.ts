@@ -1,21 +1,26 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import type { MessageModel } from '../components/chat/types';
 import type { OrbState } from '../components/orb/OrbState';
-import { chatService } from '../services/chat.service';
+import { useStream } from './useStream';
 
 export function useChat() {
-  const [messages, setMessages] = useState<MessageModel[]>([]);
+  const [messages, setMessages] =
+    useState<MessageModel[]>([]);
+
   const [orbState, setOrbState] =
     useState<OrbState>('idle');
-  const [isTyping, setIsTyping] =
-    useState(false);
 
   const [streamingMessageId, setStreamingMessageId] =
     useState<string | null>(null);
 
-  const abortControllerRef =
-    useRef<AbortController | null>(null);
+  const isTyping =
+    streamingMessageId !== null;
+
+  const {
+    stream,
+    stop,
+  } = useStream();
 
   async function sendMessage(content: string) {
     const value = content.trim();
@@ -45,19 +50,12 @@ export function useChat() {
     ]);
 
     setOrbState('thinking');
-    setIsTyping(true);
 
     try {
       let assistantContent = '';
 
-      const controller = new AbortController();
-
-      abortControllerRef.current = controller;
-
-      await chatService.streamMessage(
-        {
-          message: value,
-        },
+      await stream(
+        value,
         chunk => {
           assistantContent += chunk;
 
@@ -72,7 +70,6 @@ export function useChat() {
             ),
           );
         },
-        controller.signal,
       );
 
       setOrbState('speaking');
@@ -81,7 +78,10 @@ export function useChat() {
         setTimeout(resolve, 500),
       );
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (
+        error instanceof Error &&
+        error.name === 'AbortError'
+      ) {
         return;
       }
 
@@ -97,15 +97,13 @@ export function useChat() {
         ),
       );
     } finally {
-      abortControllerRef.current = null;
       setStreamingMessageId(null);
-      setIsTyping(false);
       setOrbState('idle');
     }
   }
 
   function stopGeneration() {
-    abortControllerRef.current?.abort();
+    stop();
   }
 
   return {
