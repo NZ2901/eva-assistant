@@ -11,12 +11,21 @@ interface ChatMessagesProps {
   messages: MessageModel[];
   isTyping: boolean;
   streamingMessageId: string | null;
+  onRegenerate: (
+    assistantId: string,
+  ) => void;
+  onEdit: (
+    messageId: string,
+    content: string,
+  ) => void;
 }
 
 export function ChatMessages({
   messages,
   isTyping,
   streamingMessageId,
+  onRegenerate,
+  onEdit,
 }: ChatMessagesProps) {
   const containerRef =
     useRef<HTMLDivElement>(null);
@@ -35,7 +44,9 @@ export function ChatMessages({
       container.scrollTop -
       container.clientHeight;
 
-    setAutoScroll(distanceFromBottom < 120);
+    setAutoScroll(
+      distanceFromBottom < 120,
+    );
   }
 
   useEffect(() => {
@@ -65,15 +76,44 @@ export function ChatMessages({
         scroll-smooth
       "
     >
-      {messages.map(message => (
-        <Message
-          key={message.id}
-          message={message}
-          isStreaming={
-            streamingMessageId === message.id
-          }
-        />
-      ))}
+      {messages.map((message, index) => {
+        const isStreaming =
+          streamingMessageId === message.id;
+
+        const isLastMessage =
+          index === messages.length - 1;
+
+        const canRegenerate =
+          message.role === 'assistant' &&
+          isLastMessage &&
+          !isTyping;
+
+        const canEdit =
+          message.role === 'user' &&
+          index === messages.length - 2 &&
+          !isTyping;
+
+        return (
+          <Message
+            key={message.id}
+            message={message}
+            isStreaming={isStreaming}
+            canRegenerate={
+              canRegenerate
+            }
+            onRegenerate={() =>
+              onRegenerate(message.id)
+            }
+            canEdit={canEdit}
+            onEdit={content =>
+              onEdit(
+                message.id,
+                content,
+              )
+            }
+          />
+        );
+      })}
     </div>
   );
 }

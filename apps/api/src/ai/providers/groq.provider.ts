@@ -17,7 +17,7 @@ export class GroqProvider implements AIProvider {
   ): Promise<string> {
     const completion =
       await this.groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages,
       });
 
@@ -32,7 +32,7 @@ export class GroqProvider implements AIProvider {
   ): AsyncGenerator<string> {
     const stream =
       await this.groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages,
         stream: true,
       });

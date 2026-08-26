@@ -1,18 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { PromptService } from './prompt.service';
 
 describe('PromptService', () => {
-  let service: PromptService;
+  it('includes permanent memories as factual context', async () => {
+    const personalityService = {
+      build: jest.fn().mockReturnValue({
+        systemPrompt: 'Você é EVA.',
+      }),
+    };
+    const permanentMemoryService = {
+      getAllMemories: jest.fn().mockResolvedValue([
+        { key: 'name', value: 'João' },
+      ]),
+    };
+    const service = new PromptService(
+      personalityService as never,
+      permanentMemoryService as never,
+    );
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [PromptService],
-    }).compile();
-
-    service = module.get<PromptService>(PromptService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    await expect(service.build()).resolves.toContain(
+      '- name: João',
+    );
   });
 });

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 
+import type { SendMessageRequest } from '../services/chat.service';
 import { chatService } from '../services/chat.service';
 
 export function useStream() {
@@ -7,7 +8,7 @@ export function useStream() {
     useRef<AbortController | null>(null);
 
   async function stream(
-    message: string,
+    request: SendMessageRequest,
     onChunk: (chunk: string) => void,
   ) {
     const controller =
@@ -19,7 +20,7 @@ export function useStream() {
     try {
       await chatService.streamMessage(
         {
-          message,
+          ...request,
         },
         onChunk,
         controller.signal,

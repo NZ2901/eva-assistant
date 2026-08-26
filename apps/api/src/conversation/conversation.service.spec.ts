@@ -1,18 +1,36 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConversationService } from './conversation.service';
 
 describe('ConversationService', () => {
-  let service: ConversationService;
+  it('builds the model context from one persisted conversation', async () => {
+    const messages = [
+      { role: 'user' as const, content: 'Olá' },
+    ];
+    const memoryService = {
+      getConversationHistory: jest.fn().mockResolvedValue(messages),
+    };
+    const promptService = {
+      build: jest.fn().mockResolvedValue('Prompt EVA'),
+    };
+    const aiService = {
+      chat: jest.fn().mockResolvedValue('Resposta'),
+    };
+    const service = new ConversationService(
+      aiService as never,
+      memoryService as never,
+      promptService as never,
+    );
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [ConversationService],
-    }).compile();
+    await expect(
+      service.chat('conversation-1', ['assistant-1']),
+    ).resolves.toBe('Resposta');
 
-    service = module.get<ConversationService>(ConversationService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(memoryService.getConversationHistory).toHaveBeenCalledWith(
+      'conversation-1',
+      ['assistant-1'],
+    );
+    expect(aiService.chat).toHaveBeenCalledWith([
+      { role: 'system', content: 'Prompt EVA' },
+      ...messages,
+    ]);
   });
 });

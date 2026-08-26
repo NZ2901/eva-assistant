@@ -1,11 +1,17 @@
 import {
-  KeyboardEvent,
   useEffect,
   useRef,
   useState,
 } from 'react';
+import type { KeyboardEvent } from 'react';
 
-import { SendHorizontal } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  SendHorizontal,
+} from 'lucide-react';
+
+import { useVoice } from '../../hooks/useVoice';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -16,10 +22,25 @@ export function ChatInput({
   onSend,
   disabled = false,
 }: ChatInputProps) {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] =
+    useState('');
 
   const textareaRef =
     useRef<HTMLTextAreaElement>(null);
+
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+  } = useVoice({
+    onTranscript: text => {
+      if (disabled) return;
+
+      setMessage(text);
+      onSend(text);
+    },
+  });
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -28,10 +49,18 @@ export function ChatInput({
   useEffect(() => {
     if (!textareaRef.current) return;
 
-    textareaRef.current.style.height = '0px';
+    textareaRef.current.style.height =
+      '0px';
+
     textareaRef.current.style.height =
       `${textareaRef.current.scrollHeight}px`;
   }, [message]);
+
+  useEffect(() => {
+    if (!transcript) return;
+
+    setMessage(transcript);
+  }, [transcript]);
 
   function send() {
     const value = message.trim();
@@ -56,6 +85,15 @@ export function ChatInput({
 
       send();
     }
+  }
+
+  function handleVoice() {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    startListening();
   }
 
   return (
@@ -83,11 +121,15 @@ export function ChatInput({
         rows={1}
         value={message}
         disabled={disabled}
-        onChange={(e) =>
+        onChange={e =>
           setMessage(e.target.value)
         }
         onKeyDown={handleKeyDown}
-        placeholder="Pergunte qualquer coisa..."
+        placeholder={
+          isListening
+            ? 'Estou ouvindo...'
+            : 'Pergunte qualquer coisa...'
+        }
         className="
           max-h-40
           flex-1
@@ -101,8 +143,45 @@ export function ChatInput({
       />
 
       <button
+        type="button"
+        onClick={handleVoice}
+        disabled={disabled}
+        className={`
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-xl
+          text-white
+          transition-all
+
+          disabled:cursor-not-allowed
+          disabled:opacity-50
+
+          hover:scale-105
+
+          ${
+            isListening
+              ? 'bg-red-600 hover:bg-red-500'
+              : 'bg-blue-600 hover:bg-blue-500'
+          }
+        `}
+      >
+        {isListening ? (
+          <MicOff size={18} />
+        ) : (
+          <Mic size={18} />
+        )}
+      </button>
+
+      <button
+        type="button"
         onClick={send}
-        disabled={disabled || !message.trim()}
+        disabled={
+          disabled ||
+          !message.trim()
+        }
         className="
           flex
           h-11

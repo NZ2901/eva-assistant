@@ -2,9 +2,15 @@ import { useState } from 'react';
 
 import type { MessageModel } from '../components/chat/types';
 import type { OrbState } from '../components/orb/OrbState';
+import { useSpeech } from './useSpeech';
 import { useStream } from './useStream';
+import type { ChatOperation } from '../api/chat.api';
 
 export function useChat() {
+  const [conversationId] = useState(() =>
+    crypto.randomUUID(),
+  );
+
   const [messages, setMessages] =
     useState<MessageModel[]>([]);
 
@@ -22,40 +28,31 @@ export function useChat() {
     stop,
   } = useStream();
 
-  async function sendMessage(content: string) {
-    const value = content.trim();
+  const {
+    speak,
+    stop: stopSpeaking,
+  } = useSpeech();
 
-    if (!value) return;
-
-    const userMessage: MessageModel = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: value,
-      createdAt: new Date(),
-    };
-
-    const assistantId = crypto.randomUUID();
-
+  async function generateResponse(
+    content: string,
+    userMessageId: string,
+    assistantId: string,
+    operation: ChatOperation,
+  ) {
     setStreamingMessageId(assistantId);
-
-    setMessages(previous => [
-      ...previous,
-      userMessage,
-      {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        createdAt: new Date(),
-      },
-    ]);
-
     setOrbState('thinking');
 
     try {
       let assistantContent = '';
 
       await stream(
-        value,
+        {
+          message: content,
+          conversationId,
+          userMessageId,
+          assistantMessageId: assistantId,
+          operation,
+        },
         chunk => {
           assistantContent += chunk;
 
@@ -74,9 +71,8 @@ export function useChat() {
 
       setOrbState('speaking');
 
-      await new Promise(resolve =>
-        setTimeout(resolve, 500),
-      );
+      speak(assistantContent);
+
     } catch (error) {
       if (
         error instanceof Error &&
@@ -102,8 +98,137 @@ export function useChat() {
     }
   }
 
+  async function sendMessage(content: string) {
+    const value = content.trim();
+
+    if (!value || isTyping) return;
+
+    const userMessage: MessageModel = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: value,
+      createdAt: new Date(),
+    };
+
+    const assistantId = crypto.randomUUID();
+
+    setMessages(previous => [
+      ...previous,
+      userMessage,
+      {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date(),
+      },
+    ]);
+
+    await generateResponse(
+      value,
+      userMessage.id,
+      assistantId,
+      'new',
+    );
+  }
+
+  async function regenerateMessage(
+    assistantId: string,
+  ) {
+    if (isTyping) return;
+
+    const assistantIndex =
+      messages.findIndex(
+        message =>
+          message.id === assistantId,
+      );
+
+    if (assistantIndex === -1) return;
+
+    const userMessage =
+      messages[assistantIndex - 1];
+
+    if (!userMessage) return;
+
+    if (userMessage.role !== 'user') return;
+
+    setMessages(previous =>
+      previous.map(message =>
+        message.id === assistantId
+          ? {
+              ...message,
+              content: '',
+            }
+          : message,
+      ),
+    );
+
+    await generateResponse(
+      userMessage.content,
+      userMessage.id,
+      assistantId,
+      'regenerate',
+    );
+  }
+
+  async function editMessage(
+    messageId: string,
+    content: string,
+  ) {
+    if (isTyping) return;
+
+    const value = content.trim();
+
+    if (!value) return;
+
+    const messageIndex =
+      messages.findIndex(
+        message =>
+          message.id === messageId,
+      );
+
+    if (messageIndex === -1) return;
+
+    const message =
+      messages[messageIndex];
+
+    if (message.role !== 'user') return;
+
+    const assistantMessage =
+      messages[messageIndex + 1];
+
+    if (
+      !assistantMessage ||
+      assistantMessage.role !== 'assistant'
+    ) {
+      return;
+    }
+
+    const updatedUserMessage: MessageModel = {
+      ...message,
+      content: value,
+    };
+
+    setMessages(previous => [
+      ...previous.slice(0, messageIndex),
+      updatedUserMessage,
+      {
+        ...assistantMessage,
+        content: '',
+      },
+      ...previous.slice(messageIndex + 2),
+    ]);
+
+    await generateResponse(
+      value,
+      message.id,
+      assistantMessage.id,
+      'edit',
+    );
+  }
+
   function stopGeneration() {
     stop();
+    stopSpeaking();
   }
 
   return {
@@ -112,6 +237,8 @@ export function useChat() {
     isTyping,
     streamingMessageId,
     sendMessage,
+    regenerateMessage,
+    editMessage,
     stopGeneration,
   };
 }

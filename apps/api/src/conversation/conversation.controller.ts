@@ -7,13 +7,13 @@ import {
 
 import type { Response } from 'express';
 
+import { BrainService } from '../brain/brain.service';
 import { ChatDto } from './dto/chat.dto';
-import { ConversationService } from './conversation.service';
 
 @Controller('conversation')
 export class ConversationController {
   constructor(
-    private readonly conversationService: ConversationService,
+    private readonly brainService: BrainService,
   ) {}
 
   @Post()
@@ -21,9 +21,7 @@ export class ConversationController {
     @Body() body: ChatDto,
   ) {
     const response =
-      await this.conversationService.chat(
-        body.message,
-      );
+      await this.brainService.chat(body);
 
     return {
       message: response,
@@ -57,9 +55,7 @@ export class ConversationController {
 
     try {
       for await (
-        const chunk of this.conversationService.stream(
-          body.message,
-        )
+        const chunk of this.brainService.stream(body)
       ) {
         response.write(chunk);
       }

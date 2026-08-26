@@ -14,12 +14,16 @@ export class ConversationService {
   ) {}
 
   private async buildMessages(
-    userMessage: string,
+    conversationId: string,
+    excludedClientMessageIds: string[] = [],
   ): Promise<ChatMessage[]> {
     const history =
-      await this.memoryService.getConversationHistory();
+      await this.memoryService.getConversationHistory(
+        conversationId,
+        excludedClientMessageIds,
+      );
 
-    const prompt = this.promptService.build();
+    const prompt = await this.promptService.build();
 
     return [
       {
@@ -27,27 +31,31 @@ export class ConversationService {
         content: prompt,
       },
       ...history,
-      {
-        role: 'user',
-        content: userMessage,
-      },
     ];
   }
 
   async chat(
-    userMessage: string,
+    conversationId: string,
+    excludedClientMessageIds: string[] = [],
   ): Promise<string> {
     const messages =
-      await this.buildMessages(userMessage);
+      await this.buildMessages(
+        conversationId,
+        excludedClientMessageIds,
+      );
 
     return this.aiService.chat(messages);
   }
 
   async *stream(
-    userMessage: string,
+    conversationId: string,
+    excludedClientMessageIds: string[] = [],
   ): AsyncGenerator<string> {
     const messages =
-      await this.buildMessages(userMessage);
+      await this.buildMessages(
+        conversationId,
+        excludedClientMessageIds,
+      );
 
     yield* this.aiService.stream(messages);
   }

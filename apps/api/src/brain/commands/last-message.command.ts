@@ -10,8 +10,13 @@ export class LastMessageCommand implements Command {
     return message.toLowerCase().includes('última mensagem');
   }
 
-  async execute(): Promise<{ response: string }> {
-    const lastMessage = await this.memoryService.getLastMessage();
+  async execute(
+    conversationId: string,
+  ): Promise<{ response: string }> {
+    const lastMessage =
+      await this.memoryService.getLastMessage(
+        conversationId,
+      );
 
     return {
       response: lastMessage

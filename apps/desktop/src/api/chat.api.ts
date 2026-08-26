@@ -1,8 +1,17 @@
 import { API_URL } from '../config/api';
 import { http } from '../lib/http';
 
-interface ChatRequest {
+export type ChatOperation =
+  | 'new'
+  | 'edit'
+  | 'regenerate';
+
+export interface ChatRequest {
   message: string;
+  conversationId: string;
+  userMessageId: string;
+  assistantMessageId: string;
+  operation: ChatOperation;
 }
 
 interface ChatResponse {

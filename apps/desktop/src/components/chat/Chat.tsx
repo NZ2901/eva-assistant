@@ -18,9 +18,12 @@ export function Chat() {
     streamingMessageId,
     sendMessage,
     stopGeneration,
+    regenerateMessage,
+    editMessage,
   } = useChat();
 
-  const hasMessages = messages.length > 0;
+  const hasMessages =
+    messages.length > 0;
 
   return (
     <section
@@ -98,7 +101,9 @@ export function Chat() {
               {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
-                  onClick={() => sendMessage(suggestion)}
+                  onClick={() =>
+                    sendMessage(suggestion)
+                  }
                   disabled={isTyping}
                   className="
                     rounded-2xl
@@ -152,7 +157,13 @@ export function Chat() {
             <ChatMessages
               messages={messages}
               isTyping={isTyping}
-              streamingMessageId={streamingMessageId}
+              streamingMessageId={
+                streamingMessageId
+              }
+              onRegenerate={
+                regenerateMessage
+              }
+              onEdit={editMessage}
             />
           </>
         )}

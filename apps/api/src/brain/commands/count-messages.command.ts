@@ -10,8 +10,13 @@ export class CountMessagesCommand implements Command {
     return message.toLowerCase().includes('quantas mensagens');
   }
 
-  async execute(): Promise<{ response: string }> {
-    const totalMessages = await this.memoryService.getTotalMessages();
+  async execute(
+    conversationId: string,
+  ): Promise<{ response: string }> {
+    const totalMessages =
+      await this.memoryService.getTotalMessages(
+        conversationId,
+      );
 
     return {
       response: `Você enviou ${totalMessages} mensagens até agora.`,

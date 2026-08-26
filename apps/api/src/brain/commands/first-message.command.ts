@@ -10,8 +10,13 @@ export class FirstMessageCommand implements Command {
     return message.toLowerCase().includes('primeira mensagem');
   }
 
-  async execute(): Promise<{ response: string }> {
-    const firstMessage = await this.memoryService.getFirstMessage();
+  async execute(
+    conversationId: string,
+  ): Promise<{ response: string }> {
+    const firstMessage =
+      await this.memoryService.getFirstMessage(
+        conversationId,
+      );
 
     return {
       response: firstMessage
