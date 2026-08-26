@@ -1,18 +1,61 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { MemoryService } from './memory.service';
 
 describe('MemoryService', () => {
-  let service: MemoryService;
+  it('queries history only from the requested conversation', async () => {
+    const prisma = {
+      conversation: {
+        upsert: jest.fn(),
+      },
+      message: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const service = new MemoryService(prisma as never);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [MemoryService],
-    }).compile();
+    await service.getConversationHistory(
+      'conversation-1',
+      ['assistant-1'],
+    );
 
-    service = module.get<MemoryService>(MemoryService);
+    expect(prisma.message.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversationId: 'conversation-1',
+          clientMessageId: {
+            notIn: ['assistant-1'],
+          },
+        }),
+      }),
+    );
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('updates messages only within their conversation', async () => {
+    const prisma = {
+      conversation: {
+        upsert: jest.fn(),
+      },
+      message: {
+        upsert: jest.fn(),
+      },
+    };
+    const service = new MemoryService(prisma as never);
+
+    await service.saveMessage({
+      conversationId: 'conversation-1',
+      clientMessageId: 'message-1',
+      role: 'user',
+      content: 'Olá',
+    });
+
+    expect(prisma.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          conversationId_clientMessageId: {
+            conversationId: 'conversation-1',
+            clientMessageId: 'message-1',
+          },
+        },
+      }),
+    );
   });
 });
