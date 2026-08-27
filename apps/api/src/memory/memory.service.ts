@@ -12,6 +12,22 @@ export interface PersistedMessageInput {
   content: string;
 }
 
+export interface ConversationSummary {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  preview: string | null;
+}
+
+export interface ConversationDetails extends ConversationSummary {
+  messages: Array<{
+    id: string;
+    role: MessageRole;
+    content: string;
+    createdAt: Date;
+  }>;
+}
+
 @Injectable()
 export class MemoryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -55,6 +71,69 @@ export class MemoryService {
         content,
       },
     });
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+  }
+
+  async listConversations(): Promise<ConversationSummary[]> {
+    const conversations = await this.prisma.conversation.findMany({
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        messages: {
+          where: { role: 'user', content: { not: '' } },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: { content: true },
+        },
+      },
+    });
+
+    return conversations.map((conversation) => ({
+      id: conversation.id,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      preview: conversation.messages[0]?.content ?? null,
+    }));
+  }
+
+  async getConversation(
+    conversationId: string,
+  ): Promise<ConversationDetails | null> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            clientMessageId: true,
+            role: true,
+            content: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) return null;
+
+    return {
+      id: conversation.id,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      preview:
+        conversation.messages.find(
+          (message) => message.role === 'user' && message.content !== '',
+        )?.content ?? null,
+      messages: conversation.messages.map((message) => ({
+        id: message.clientMessageId,
+        role: message.role as MessageRole,
+        content: message.content,
+        createdAt: message.createdAt,
+      })),
+    };
   }
 
   async getMessages(

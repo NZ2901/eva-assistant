@@ -19,7 +19,7 @@ export class ChatDto {
   message: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   conversationId?: string;
 
   @IsOptional()

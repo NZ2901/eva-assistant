@@ -14,6 +14,24 @@ export interface ChatRequest {
   operation: ChatOperation;
 }
 
+export interface ConversationSummary {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  preview: string | null;
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
+export interface ConversationDetails extends ConversationSummary {
+  messages: ConversationMessage[];
+}
+
 interface ChatResponse {
   message: string;
 }
@@ -71,4 +89,23 @@ export async function streamMessage(
       }),
     );
   }
+}
+
+export async function listConversations(): Promise<ConversationSummary[]> {
+  const { data } = await http.get<ConversationSummary[]>('/conversation');
+  return data;
+}
+
+export async function createConversation(): Promise<ConversationDetails> {
+  const { data } = await http.post<ConversationDetails>('/conversation/new');
+  return data;
+}
+
+export async function getConversation(
+  conversationId: string,
+): Promise<ConversationDetails> {
+  const { data } = await http.get<ConversationDetails>(
+    `/conversation/${conversationId}`,
+  );
+  return data;
 }

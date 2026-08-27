@@ -13,6 +13,8 @@ const suggestions = [
 export function Chat() {
   const {
     messages,
+    conversationId,
+    conversations,
     orbState,
     isTyping,
     streamingMessageId,
@@ -20,6 +22,8 @@ export function Chat() {
     stopGeneration,
     regenerateMessage,
     editMessage,
+    newConversation,
+    selectConversation,
   } = useChat();
 
   const hasMessages =
@@ -58,6 +62,27 @@ export function Chat() {
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={conversationId ?? ''}
+            onChange={(event) => void selectConversation(event.target.value)}
+            disabled={isTyping || conversations.length === 0}
+            className="max-w-56 rounded-lg border border-blue-500/20 bg-[#070B14] px-2 py-1 text-sm text-white/80"
+          >
+            {!conversationId && <option value="">Nova conversa</option>}
+            {conversations.map((conversation) => (
+              <option key={conversation.id} value={conversation.id}>
+                {conversation.preview?.slice(0, 28) || 'Nova conversa'}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => void newConversation()}
+            disabled={isTyping}
+            className="rounded-lg border border-blue-500/20 px-3 py-1 text-sm text-blue-200 disabled:opacity-50"
+          >
+            Nova
+          </button>
           <div className="h-2 w-2 rounded-full bg-emerald-400" />
 
           <span className="text-sm text-emerald-400">

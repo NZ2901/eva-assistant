@@ -5,6 +5,7 @@ describe('MemoryService', () => {
     const prisma = {
       conversation: {
         upsert: jest.fn(),
+        update: jest.fn(),
       },
       message: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -33,6 +34,7 @@ describe('MemoryService', () => {
     const prisma = {
       conversation: {
         upsert: jest.fn(),
+        update: jest.fn(),
       },
       message: {
         upsert: jest.fn(),
@@ -55,6 +57,12 @@ describe('MemoryService', () => {
             clientMessageId: 'message-1',
           },
         },
+      }),
+    );
+    expect(prisma.conversation.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'conversation-1' },
+        data: expect.objectContaining({ updatedAt: expect.any(Date) }),
       }),
     );
   });

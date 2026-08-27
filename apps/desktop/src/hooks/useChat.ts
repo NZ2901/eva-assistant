@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { MessageModel } from '../components/chat/types';
 import type { OrbState } from '../components/orb/OrbState';
 import { useSpeech } from './useSpeech';
 import { useStream } from './useStream';
 import type { ChatOperation } from '../api/chat.api';
+import {
+  createConversation,
+  getConversation,
+  listConversations,
+} from '../api/chat.api';
+import type { ConversationSummary } from '../api/chat.api';
 
 export function useChat() {
-  const [conversationId] = useState(() =>
-    crypto.randomUUID(),
-  );
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const lifecycleVersion = useRef(0);
+  const createConversationPromise = useRef<Promise<Awaited<ReturnType<typeof createConversation>> | null>>(null);
 
   const [messages, setMessages] =
     useState<MessageModel[]>([]);
@@ -33,11 +40,87 @@ export function useChat() {
     stop: stopSpeaking,
   } = useSpeech();
 
+  async function ensureConversation(expectedVersion = lifecycleVersion.current) {
+    if (conversationId) return conversationId;
+    if (!createConversationPromise.current) {
+      createConversationPromise.current = createConversation()
+        .catch((error) => {
+          console.error('Erro ao criar conversa:', error);
+          return null;
+        })
+        .finally(() => {
+          createConversationPromise.current = null;
+        });
+    }
+    const created = await createConversationPromise.current;
+    if (!created) return null;
+    if (expectedVersion !== lifecycleVersion.current) return created.id;
+    setConversationId(created.id);
+    setConversations((previous) => [
+      { id: created.id, createdAt: created.createdAt, updatedAt: created.updatedAt, preview: null },
+      ...previous.filter((item) => item.id !== created.id),
+    ]);
+    localStorage.setItem('eva.conversationId', created.id);
+    return created.id;
+  }
+
+  useEffect(() => {
+    const version = lifecycleVersion.current;
+    let active = true;
+    void listConversations().then(async (items) => {
+      if (!active || version !== lifecycleVersion.current) return;
+      setConversations(items);
+      const savedId = localStorage.getItem('eva.conversationId');
+      if (savedId && !items.some((item) => item.id === savedId)) {
+        localStorage.removeItem('eva.conversationId');
+      }
+      const selected = items.find((item) => item.id === savedId) ?? items[0];
+      if (selected) {
+        let conversation;
+        try {
+          conversation = await getConversation(selected.id);
+        } catch (error) {
+          if (savedId === selected.id) localStorage.removeItem('eva.conversationId');
+          if (!active || version !== lifecycleVersion.current) return;
+          const created = await createConversation();
+          if (!active || version !== lifecycleVersion.current) return;
+          conversation = created;
+        }
+        if (!conversation || !active || version !== lifecycleVersion.current) return;
+        setConversationId(conversation.id);
+        setMessages(conversation.messages.map((message) => ({
+          ...message,
+          createdAt: new Date(message.createdAt),
+        })));
+        localStorage.setItem('eva.conversationId', conversation.id);
+      } else {
+        const created = await createConversation();
+        if (active && version === lifecycleVersion.current) {
+          setConversationId(created.id);
+          setConversations([{
+            id: created.id,
+            createdAt: created.createdAt,
+            updatedAt: created.updatedAt,
+            preview: null,
+          }]);
+          localStorage.setItem('eva.conversationId', created.id);
+        }
+      }
+    }).catch((error) => console.error('Erro ao carregar conversas:', error));
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (conversationId) localStorage.setItem('eva.conversationId', conversationId);
+  }, [conversationId]);
+
   async function generateResponse(
     content: string,
     userMessageId: string,
     assistantId: string,
     operation: ChatOperation,
+    activeConversationId: string,
+    responseVersion: number,
   ) {
     setStreamingMessageId(assistantId);
     setOrbState('thinking');
@@ -48,13 +131,15 @@ export function useChat() {
       await stream(
         {
           message: content,
-          conversationId,
+          conversationId: activeConversationId,
           userMessageId,
           assistantMessageId: assistantId,
           operation,
         },
         chunk => {
           assistantContent += chunk;
+
+          if (responseVersion !== lifecycleVersion.current) return;
 
           setMessages(previous =>
             previous.map(message =>
@@ -93,8 +178,13 @@ export function useChat() {
         ),
       );
     } finally {
-      setStreamingMessageId(null);
-      setOrbState('idle');
+      if (responseVersion === lifecycleVersion.current) {
+        setStreamingMessageId(null);
+        setOrbState('idle');
+      }
+      void listConversations()
+        .then(setConversations)
+        .catch((error) => console.error('Erro ao atualizar conversas:', error));
     }
   }
 
@@ -102,6 +192,14 @@ export function useChat() {
     const value = content.trim();
 
     if (!value || isTyping) return;
+
+    let activeConversationId = conversationId;
+    let responseVersion = lifecycleVersion.current;
+    if (!activeConversationId) {
+      responseVersion = ++lifecycleVersion.current;
+      activeConversationId = await ensureConversation(responseVersion);
+      if (!activeConversationId) return;
+    }
 
     const userMessage: MessageModel = {
       id: crypto.randomUUID(),
@@ -128,7 +226,48 @@ export function useChat() {
       userMessage.id,
       assistantId,
       'new',
+      activeConversationId,
+      responseVersion,
     );
+  }
+
+  async function newConversation() {
+    if (isTyping) return;
+    const version = ++lifecycleVersion.current;
+    stop();
+    stopSpeaking();
+    const created = await createConversation();
+    if (version !== lifecycleVersion.current) return;
+    setConversationId(created.id);
+    setMessages([]);
+    setConversations((previous) => [
+      { id: created.id, createdAt: created.createdAt, updatedAt: created.updatedAt, preview: null },
+      ...previous.filter((item) => item.id !== created.id),
+    ]);
+  }
+
+  async function selectConversation(id: string) {
+    if (isTyping || id === conversationId) return;
+    const version = ++lifecycleVersion.current;
+    setConversationId(id);
+    setMessages([]);
+    stop();
+    stopSpeaking();
+    let conversation;
+    try {
+      conversation = await getConversation(id);
+    } catch (error) {
+      localStorage.removeItem('eva.conversationId');
+      const created = await createConversation();
+      if (version !== lifecycleVersion.current) return;
+      conversation = created;
+    }
+    if (version !== lifecycleVersion.current) return;
+    setConversationId(conversation.id);
+    setMessages(conversation.messages.map((message) => ({
+      ...message,
+      createdAt: new Date(message.createdAt),
+    })));
   }
 
   async function regenerateMessage(
@@ -167,6 +306,8 @@ export function useChat() {
       userMessage.id,
       assistantId,
       'regenerate',
+      conversationId!,
+      lifecycleVersion.current,
     );
   }
 
@@ -223,6 +364,8 @@ export function useChat() {
       message.id,
       assistantMessage.id,
       'edit',
+      conversationId!,
+      lifecycleVersion.current,
     );
   }
 
@@ -233,6 +376,8 @@ export function useChat() {
 
   return {
     messages,
+    conversationId,
+    conversations,
     orbState,
     isTyping,
     streamingMessageId,
@@ -240,5 +385,7 @@ export function useChat() {
     regenerateMessage,
     editMessage,
     stopGeneration,
+    newConversation,
+    selectConversation,
   };
 }

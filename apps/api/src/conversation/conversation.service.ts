@@ -4,6 +4,11 @@ import { AIService } from '../ai/ai.service';
 import type { ChatMessage } from '../ai/interfaces/ai-provider.interface';
 import { MemoryService } from '../memory/memory.service';
 import { PromptService } from '../prompt/prompt.service';
+import { randomUUID } from 'node:crypto';
+import type {
+  ConversationDetails,
+  ConversationSummary,
+} from '../memory/memory.service';
 
 @Injectable()
 export class ConversationService {
@@ -12,6 +17,20 @@ export class ConversationService {
     private readonly memoryService: MemoryService,
     private readonly promptService: PromptService,
   ) {}
+
+  async create(): Promise<ConversationDetails> {
+    const id = randomUUID();
+    await this.memoryService.ensureConversation(id);
+    return (await this.memoryService.getConversation(id))!;
+  }
+
+  async list(): Promise<ConversationSummary[]> {
+    return this.memoryService.listConversations();
+  }
+
+  async get(conversationId: string): Promise<ConversationDetails | null> {
+    return this.memoryService.getConversation(conversationId);
+  }
 
   private async buildMessages(
     conversationId: string,

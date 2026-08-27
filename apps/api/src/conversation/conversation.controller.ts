@@ -1,6 +1,9 @@
 import {
   Body,
   Controller,
+  Get,
+  NotFoundException,
+  Param,
   Post,
   Res,
 } from '@nestjs/common';
@@ -8,13 +11,36 @@ import {
 import type { Response } from 'express';
 
 import { BrainService } from '../brain/brain.service';
+import { ConversationService } from './conversation.service';
 import { ChatDto } from './dto/chat.dto';
 
 @Controller('conversation')
 export class ConversationController {
   constructor(
     private readonly brainService: BrainService,
+    private readonly conversationService: ConversationService,
   ) {}
+
+  @Get()
+  list() {
+    return this.conversationService.list();
+  }
+
+  @Post('new')
+  create() {
+    return this.conversationService.create();
+  }
+
+  @Get(':id')
+  async get(
+    @Param('id') id: string,
+  ) {
+    const conversation = await this.conversationService.get(id);
+    if (!conversation) {
+      throw new NotFoundException('Conversa não encontrada.');
+    }
+    return conversation;
+  }
 
   @Post()
   async chat(

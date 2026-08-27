@@ -14,6 +14,8 @@ export function useStream() {
     const controller =
       new AbortController();
 
+    abortControllerRef.current?.abort();
+
     abortControllerRef.current =
       controller;
 
@@ -26,8 +28,9 @@ export function useStream() {
         controller.signal,
       );
     } finally {
-      abortControllerRef.current =
-        null;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   }
 
