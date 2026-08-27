@@ -26,4 +26,21 @@ describe('PermanentMemoryService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  it('upserts a permanent memory by key', async () => {
+    const prisma = {
+      memory: {
+        upsert: jest.fn(),
+      },
+    };
+    const service = new PermanentMemoryService(prisma as never);
+
+    await service.saveMemory('city', 'São Paulo');
+
+    expect(prisma.memory.upsert).toHaveBeenCalledWith({
+      where: { key: 'city' },
+      update: { value: 'São Paulo' },
+      create: { key: 'city', value: 'São Paulo' },
+    });
+  });
 });

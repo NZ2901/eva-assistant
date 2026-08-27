@@ -26,6 +26,13 @@ Nunca extraia informações temporárias.
 
 Retorne APENAS um JSON.
 
+Use chaves curtas em inglês, minúsculas e snake_case, por exemplo:
+
+- name
+- city
+- profession
+- favorite_technology
+
 Formato:
 
 {

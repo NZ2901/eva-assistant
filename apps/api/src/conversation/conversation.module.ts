@@ -6,6 +6,7 @@ import { CountMessagesCommand } from '../brain/commands/count-messages.command';
 import { FirstMessageCommand } from '../brain/commands/first-message.command';
 import { LastMessageCommand } from '../brain/commands/last-message.command';
 import { MemoryModule } from '../memory/memory.module';
+import { MemoryExtractorModule } from '../memory-extractor/memory-extractor.module';
 import { PermanentMemoryModule } from '../permanent-memory/permanent-memory.module';
 import { PromptModule } from '../prompt/prompt.module';
 
@@ -17,11 +18,10 @@ import { ConversationService } from './conversation.service';
     AiModule,
     PromptModule,
     MemoryModule,
+    MemoryExtractorModule,
     PermanentMemoryModule,
   ],
-  controllers: [
-    ConversationController,
-  ],
+  controllers: [ConversationController],
   providers: [
     ConversationService,
     BrainService,
@@ -29,9 +29,6 @@ import { ConversationService } from './conversation.service';
     FirstMessageCommand,
     LastMessageCommand,
   ],
-  exports: [
-    ConversationService,
-    BrainService,
-  ],
+  exports: [ConversationService, BrainService],
 })
 export class ConversationModule {}

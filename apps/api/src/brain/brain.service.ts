@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ConversationService } from '../conversation/conversation.service';
 import type { ChatOperation } from '../conversation/dto/chat.dto';
 import { MemoryService } from '../memory/memory.service';
+import { MemoryExtractorService } from '../memory-extractor/memory-extractor.service';
 import { PermanentMemoryService } from '../permanent-memory/permanent-memory.service';
 
 import { CountMessagesCommand } from './commands/count-messages.command';
@@ -32,6 +33,7 @@ export class BrainService {
   constructor(
     private readonly memoryService: MemoryService,
     private readonly permanentMemoryService: PermanentMemoryService,
+    private readonly memoryExtractorService: MemoryExtractorService,
     private readonly conversationService: ConversationService,
 
     private readonly countMessagesCommand: CountMessagesCommand,
@@ -44,12 +46,9 @@ export class BrainService {
   ): NormalizedConversationRequest {
     return {
       message: request.message,
-      conversationId:
-        request.conversationId ?? randomUUID(),
-      userMessageId:
-        request.userMessageId ?? randomUUID(),
-      assistantMessageId:
-        request.assistantMessageId ?? randomUUID(),
+      conversationId: request.conversationId ?? randomUUID(),
+      userMessageId: request.userMessageId ?? randomUUID(),
+      assistantMessageId: request.assistantMessageId ?? randomUUID(),
       operation: request.operation ?? 'new',
     };
   }
@@ -64,23 +63,55 @@ export class BrainService {
 
   private async rememberImportantInformation(
     message: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const lowerMessage = message.toLowerCase();
 
     if (!lowerMessage.startsWith('meu nome é ')) {
-      return;
+      return false;
     }
 
     const name = message.substring(11).trim();
 
     if (!name) {
+      return false;
+    }
+
+    await this.permanentMemoryService.saveMemory('name', name);
+
+    return true;
+  }
+
+  private captureMemories(message: string, excludeName: boolean): void {
+    void this.extractAndSaveMemories(message, excludeName).catch((error) => {
+      console.error('Erro ao extrair memórias permanentes:', error);
+    });
+  }
+
+  private async extractAndSaveMemories(
+    message: string,
+    excludeName: boolean,
+  ): Promise<void> {
+    const extraction = await this.memoryExtractorService.extract(message);
+
+    if (!extraction || extraction.memories.length === 0) {
       return;
     }
 
-    await this.permanentMemoryService.saveMemory(
-      'name',
-      name,
+    const memories = extraction.memories.filter(
+      (memory) => !excludeName || memory.key !== 'name',
     );
+
+    const results = await Promise.allSettled(
+      memories.map((memory) =>
+        this.permanentMemoryService.saveMemory(memory.key, memory.value),
+      ),
+    );
+
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('Erro ao salvar memória permanente:', result.reason);
+      }
+    }
   }
 
   private async prepare(
@@ -88,9 +119,7 @@ export class BrainService {
   ): Promise<NormalizedConversationRequest> {
     const normalized = this.normalizeRequest(request);
 
-    await this.memoryService.ensureConversation(
-      normalized.conversationId,
-    );
+    await this.memoryService.ensureConversation(normalized.conversationId);
 
     if (normalized.operation !== 'regenerate') {
       await this.memoryService.saveMessage({
@@ -100,9 +129,11 @@ export class BrainService {
         content: normalized.message,
       });
 
-      await this.rememberImportantInformation(
+      const savedExplicitName = await this.rememberImportantInformation(
         normalized.message,
       );
+
+      this.captureMemories(normalized.message, savedExplicitName);
     }
 
     await this.memoryService.saveMessage({
@@ -123,9 +154,7 @@ export class BrainService {
         continue;
       }
 
-      const result = await command.execute(
-        request.conversationId,
-      );
+      const result = await command.execute(request.conversationId);
 
       await this.memoryService.saveMessage({
         conversationId: request.conversationId,
@@ -140,9 +169,7 @@ export class BrainService {
     return null;
   }
 
-  async chat(
-    request: ConversationRequest,
-  ): Promise<string> {
+  async chat(request: ConversationRequest): Promise<string> {
     const normalized = await this.prepare(request);
     const commandResponse = await this.runCommand(normalized);
 
@@ -165,9 +192,7 @@ export class BrainService {
     return response;
   }
 
-  async *stream(
-    request: ConversationRequest,
-  ): AsyncGenerator<string> {
+  async *stream(request: ConversationRequest): AsyncGenerator<string> {
     const normalized = await this.prepare(request);
     const commandResponse = await this.runCommand(normalized);
 
