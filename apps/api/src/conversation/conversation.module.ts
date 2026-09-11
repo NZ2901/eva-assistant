@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ActionsModule } from '../actions/actions.module';
 import { AiModule } from '../ai/ai.module';
 import { BrainService } from '../brain/brain.service';
 import { CountMessagesCommand } from '../brain/commands/count-messages.command';
@@ -15,6 +16,7 @@ import { ConversationService } from './conversation.service';
 
 @Module({
   imports: [
+    ActionsModule,
     AiModule,
     PromptModule,
     MemoryModule,

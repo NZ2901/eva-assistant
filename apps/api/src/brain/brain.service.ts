@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
+import { ActionExecutorService } from '../actions/action-executor.service';
+import { ActionResolverService } from '../actions/action-resolver.service';
 import { ConversationService } from '../conversation/conversation.service';
 import type { ChatOperation } from '../conversation/dto/chat.dto';
 import { MemoryService } from '../memory/memory.service';
@@ -39,6 +41,8 @@ export class BrainService {
     private readonly countMessagesCommand: CountMessagesCommand,
     private readonly firstMessageCommand: FirstMessageCommand,
     private readonly lastMessageCommand: LastMessageCommand,
+    private readonly actionResolver: ActionResolverService,
+    private readonly actionExecutor: ActionExecutorService,
   ) {}
 
   private normalizeRequest(
@@ -169,8 +173,35 @@ export class BrainService {
     return null;
   }
 
+  private async runAction(
+    request: NormalizedConversationRequest,
+  ): Promise<string | null> {
+    const action = this.actionResolver.resolve(request.message);
+
+    if (!action) {
+      return null;
+    }
+
+    const result = await this.actionExecutor.execute(action);
+
+    await this.memoryService.saveMessage({
+      conversationId: request.conversationId,
+      clientMessageId: request.assistantMessageId,
+      role: 'assistant',
+      content: result.response,
+    });
+
+    return result.response;
+  }
+
   async chat(request: ConversationRequest): Promise<string> {
     const normalized = await this.prepare(request);
+    const actionResponse = await this.runAction(normalized);
+
+    if (actionResponse) {
+      return actionResponse;
+    }
+
     const commandResponse = await this.runCommand(normalized);
 
     if (commandResponse) {
@@ -194,6 +225,13 @@ export class BrainService {
 
   async *stream(request: ConversationRequest): AsyncGenerator<string> {
     const normalized = await this.prepare(request);
+    const actionResponse = await this.runAction(normalized);
+
+    if (actionResponse) {
+      yield actionResponse;
+      return;
+    }
+
     const commandResponse = await this.runCommand(normalized);
 
     if (commandResponse) {
