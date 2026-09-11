@@ -92,20 +92,53 @@ export async function streamMessage(
 }
 
 export async function listConversations(): Promise<ConversationSummary[]> {
-  const { data } = await http.get<ConversationSummary[]>('/conversation');
+  const { data } =
+    await http.get<ConversationSummary[]>(
+      '/conversation',
+    );
+
   return data;
 }
 
 export async function createConversation(): Promise<ConversationDetails> {
-  const { data } = await http.post<ConversationDetails>('/conversation/new');
+  const { data } =
+    await http.post<ConversationDetails>(
+      '/conversation/new',
+    );
+
   return data;
 }
 
 export async function getConversation(
   conversationId: string,
 ): Promise<ConversationDetails> {
-  const { data } = await http.get<ConversationDetails>(
-    `/conversation/${conversationId}`,
-  );
+  const { data } =
+    await http.get<ConversationDetails>(
+      `/conversation/${conversationId}`,
+    );
+
   return data;
+}
+
+export async function generateSpeech(
+  text: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(
+    `${API_URL}/speech`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error('Erro ao gerar voz.');
+  }
+
+  return response.blob();
 }
