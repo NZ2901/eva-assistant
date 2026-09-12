@@ -96,3 +96,34 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Configuração do Piper
+
+O modelo de voz é selecionado sem alteração de código:
+
+```env
+PIPER_MODEL_PATH=/caminho/para/voz.onnx
+```
+
+Mantenha o arquivo de configuração fornecido com a voz ao lado do modelo, com o
+nome `<modelo>.onnx.json`. O Piper instalado o carrega automaticamente a partir
+do caminho do modelo.
+
+Os ajustes nativos abaixo são opcionais. Quando não definidos (ou vazios), a API
+não envia as respectivas opções e preserva os valores do próprio modelo/Piper:
+
+```env
+PIPER_LENGTH_SCALE=
+PIPER_NOISE_SCALE=
+PIPER_NOISE_W_SCALE=
+PIPER_SPEAKER=
+```
+
+- `PIPER_LENGTH_SCALE`: duração dos fonemas; menor que `1` acelera e maior que
+  `1` desacelera.
+- `PIPER_NOISE_SCALE`: ruído do gerador.
+- `PIPER_NOISE_W_SCALE`: variação da duração dos fonemas.
+- `PIPER_SPEAKER`: ID numérico, aplicável a modelos com múltiplos speakers.
+
+`PIPER_EXECUTABLE` continua opcional e seleciona o binário do Piper; quando não
+definido, a API usa `piper` disponível no `PATH`.
