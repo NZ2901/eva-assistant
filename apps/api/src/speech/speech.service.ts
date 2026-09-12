@@ -4,10 +4,28 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { TextToSpeechNormalizer } from './text-to-speech-normalizer.service';
+
 const PIPER_TIMEOUT_MS = 60_000;
+
+const PIPER_VOICE_OPTIONS = [
+  ['PIPER_LENGTH_SCALE', '--length-scale'],
+  ['PIPER_NOISE_SCALE', '--noise-scale'],
+  ['PIPER_NOISE_W_SCALE', '--noise-w-scale'],
+  ['PIPER_SPEAKER', '--speaker'],
+] as const;
+
+function getPiperVoiceArguments(): string[] {
+  return PIPER_VOICE_OPTIONS.flatMap(([environmentVariable, option]) => {
+    const value = process.env[environmentVariable]?.trim();
+    return value ? [option, value] : [];
+  });
+}
 
 @Injectable()
 export class SpeechService {
+  constructor(private readonly textNormalizer: TextToSpeechNormalizer) {}
+
   async generateSpeech(text: string, signal?: AbortSignal): Promise<Buffer> {
     const modelPath = process.env.PIPER_MODEL_PATH;
 
@@ -17,9 +35,10 @@ export class SpeechService {
 
     const temporaryDirectory = await mkdtemp(join(tmpdir(), 'eva-piper-'));
     const outputPath = join(temporaryDirectory, 'speech.wav');
+    const spokenText = this.textNormalizer.normalize(text);
 
     try {
-      await this.runPiper(text, modelPath, outputPath, signal);
+      await this.runPiper(spokenText, modelPath, outputPath, signal);
       return await readFile(outputPath);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
@@ -36,7 +55,15 @@ export class SpeechService {
       const executable = process.env.PIPER_EXECUTABLE || 'piper';
       const child = spawn(
         executable,
-        ['-m', modelPath, '-f', outputPath, '--', text],
+        [
+          '-m',
+          modelPath,
+          '-f',
+          outputPath,
+          ...getPiperVoiceArguments(),
+          '--',
+          text,
+        ],
         { shell: false, stdio: ['ignore', 'ignore', 'pipe'] },
       );
       let stderr = '';
